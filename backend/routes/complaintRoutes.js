@@ -7,12 +7,13 @@ const router = express.Router();
 // All routes require authentication
 router.use(authMiddleware);
 
-// POST /api/complaints - Create a new complaint
+// =========================
+// CREATE COMPLAINT
+// =========================
 router.post('/', async (req, res) => {
   try {
     const { title, category, description } = req.body;
 
-    // Validation
     if (!title || !category || !description) {
       return res.status(400).json({ message: 'Title, category, and description are required' });
     }
@@ -30,21 +31,17 @@ router.post('/', async (req, res) => {
       return res.status(400).json({ message: 'Invalid category' });
     }
 
-    // Create complaint with logged-in user as student
     const complaint = new Complaint({
       title: title.trim(),
       category,
       description: description.trim(),
-      student: req.user.id, // From authMiddleware
+      student: req.user.id,
       status: 'Pending'
     });
 
     await complaint.save();
-
-    // Populate student info for response
     await complaint.populate('student', 'name email rollNumber fullName');
 
-    // Return complaint in format expected by frontend
     res.status(201).json({
       id: complaint._id.toString(),
       title: complaint.title,
@@ -55,20 +52,22 @@ router.post('/', async (req, res) => {
       image_url: complaint.image_url || null,
       created_by: complaint.student._id.toString()
     });
+
   } catch (error) {
     console.error('Create complaint error:', error);
-    res.status(500).json({ message: 'Server error creating complaint', error: error.message });
+    res.status(500).json({ message: 'Server error creating complaint' });
   }
 });
 
-// GET /api/complaints - Get all complaints (for admin)
+// =========================
+// GET ALL COMPLAINTS (ADMIN)
+// =========================
 router.get('/', async (req, res) => {
   try {
     const complaints = await Complaint.find()
       .populate('student', 'name email rollNumber fullName')
       .sort({ createdAt: -1 });
 
-    // Format response for frontend
     const formattedComplaints = complaints.map(complaint => ({
       id: complaint._id.toString(),
       title: complaint.title,
@@ -85,19 +84,21 @@ router.get('/', async (req, res) => {
     }));
 
     res.json(formattedComplaints);
+
   } catch (error) {
     console.error('Get complaints error:', error);
-    res.status(500).json({ message: 'Server error fetching complaints', error: error.message });
+    res.status(500).json({ message: 'Server error fetching complaints' });
   }
 });
 
-// GET /api/complaints/my - Get complaints of logged-in user
+// =========================
+// GET MY COMPLAINTS (STUDENT)
+// =========================
 router.get('/my', async (req, res) => {
   try {
     const complaints = await Complaint.find({ student: req.user.id })
       .sort({ createdAt: -1 });
 
-    // Format response for frontend
     const formattedComplaints = complaints.map(complaint => ({
       id: complaint._id.toString(),
       title: complaint.title,
@@ -109,9 +110,72 @@ router.get('/my', async (req, res) => {
     }));
 
     res.json(formattedComplaints);
+
   } catch (error) {
     console.error('Get my complaints error:', error);
-    res.status(500).json({ message: 'Server error fetching your complaints', error: error.message });
+    res.status(500).json({ message: 'Server error fetching your complaints' });
+  }
+});
+
+// =========================
+// UPDATE STATUS (ADMIN ONLY)
+// =========================
+router.patch('/:id', async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ message: 'Admin access required' });
+    }
+
+    const { status } = req.body;
+    const validStatuses = ['Pending', 'In Progress', 'Resolved'];
+
+    if (!validStatuses.includes(status)) {
+      return res.status(400).json({ message: 'Invalid status value' });
+    }
+
+    const updated = await Complaint.findByIdAndUpdate(
+      req.params.id,
+      { status },
+      { new: true }
+    );
+
+    if (!updated) {
+      return res.status(404).json({ message: 'Complaint not found' });
+    }
+
+    res.json({ message: 'Status updated successfully' });
+
+  } catch (error) {
+    console.error('Update status error:', error);
+    res.status(500).json({ message: 'Server error updating status' });
+  }
+});
+
+// =========================
+// DELETE COMPLAINT
+// =========================
+router.delete('/:id', async (req, res) => {
+  try {
+    const complaint = await Complaint.findById(req.params.id);
+
+    if (!complaint) {
+      return res.status(404).json({ message: 'Complaint not found' });
+    }
+
+    if (
+      req.user.role !== 'admin' &&
+      complaint.student.toString() !== req.user.id
+    ) {
+      return res.status(403).json({ message: 'Not authorized' });
+    }
+
+    await complaint.deleteOne();
+
+    res.json({ message: 'Complaint deleted successfully' });
+
+  } catch (error) {
+    console.error('Delete complaint error:', error);
+    res.status(500).json({ message: 'Server error deleting complaint' });
   }
 });
 
