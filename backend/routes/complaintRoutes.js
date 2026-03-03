@@ -120,7 +120,7 @@ router.get('/my', async (req, res) => {
 // =========================
 // UPDATE STATUS (ADMIN ONLY)
 // =========================
-router.patch('/:id', async (req, res) => {
+router.put('/:id', async (req, res) => {
   try {
     if (req.user.role !== 'admin') {
       return res.status(403).json({ message: 'Admin access required' });
@@ -143,7 +143,11 @@ router.patch('/:id', async (req, res) => {
       return res.status(404).json({ message: 'Complaint not found' });
     }
 
-    res.json({ message: 'Status updated successfully' });
+    res.json({
+      message: 'Status updated successfully',
+      id: updated._id.toString(),
+      status: updated.status
+    });
 
   } catch (error) {
     console.error('Update status error:', error);
