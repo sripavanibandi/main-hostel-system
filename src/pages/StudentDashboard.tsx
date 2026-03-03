@@ -61,18 +61,20 @@ const StudentDashboard: React.FC = () => {
     if (!confirm('Are you sure you want to delete this complaint?')) return;
 
     try {
-      // TODO: Implement DELETE /api/complaints/:id endpoint on backend
-      // await apiClient.delete(`/api/complaints/${id}`);
-      // setComplaints(complaints.filter(c => c.id !== id));
+      await apiClient.delete(`/api/complaints/${id}`);
+
+      // remove from UI instantly
+      setComplaints(prev => prev.filter(c => c.id !== id));
+
       toast({
-        title: 'Error',
-        description: 'Delete functionality not yet implemented',
-        variant: 'destructive',
+        title: 'Success',
+        description: 'Complaint deleted successfully',
       });
+
     } catch (error: any) {
       toast({
         title: 'Error',
-        description: 'Failed to delete complaint',
+        description: error.message || 'Failed to delete complaint',
         variant: 'destructive',
       });
     }

@@ -46,7 +46,6 @@ const AdminDashboard: React.FC = () => {
   const fetchComplaints = async () => {
     try {
       const data = await apiClient.get<ComplaintWithProfile[]>('/api/complaints');
-      console.log('Admin dashboard complaints API response:', data);
       setComplaints(data);
     } catch (error: any) {
       toast({
@@ -59,24 +58,34 @@ const AdminDashboard: React.FC = () => {
     }
   };
 
-  const handleStatusChange = async (id: string, newStatus: typeof statusOptions[number]) => {
+  // ✅ STATUS UPDATE IMPLEMENTED
+  const handleStatusChange = async (
+    id: string,
+    newStatus: typeof statusOptions[number]
+  ) => {
     setUpdating(id);
-    
+
     try {
-      // TODO: Implement PUT /api/complaints/:id endpoint on backend
-      // await apiClient.put(`/api/complaints/${id}`, { status: newStatus });
-      // setComplaints(complaints.map(c => 
-      //   c.id === id ? { ...c, status: newStatus } : c
-      // ));
-      toast({
-        title: 'Error',
-        description: 'Update functionality not yet implemented',
-        variant: 'destructive',
+      await apiClient.put(`/api/complaints/${id}`, {
+        status: newStatus,
       });
+
+      // Update UI instantly
+      setComplaints(prev =>
+        prev.map(c =>
+          c.id === id ? { ...c, status: newStatus } : c
+        )
+      );
+
+      toast({
+        title: 'Success',
+        description: 'Complaint status updated successfully',
+      });
+
     } catch (error: any) {
       toast({
         title: 'Error',
-        description: 'Failed to update status',
+        description: error.message || 'Failed to update status',
         variant: 'destructive',
       });
     } finally {
@@ -169,8 +178,8 @@ const AdminDashboard: React.FC = () => {
                     <td>
                       <div className="font-medium">{complaint.title}</div>
                       <div className="text-xs text-muted-foreground mt-1 max-w-xs">
-                        {complaint.description.length > 100 
-                          ? complaint.description.substring(0, 100) + '...' 
+                        {complaint.description.length > 100
+                          ? complaint.description.substring(0, 100) + '...'
                           : complaint.description}
                       </div>
                     </td>
@@ -183,7 +192,12 @@ const AdminDashboard: React.FC = () => {
                     <td>
                       <select
                         value={complaint.status}
-                        onChange={(e) => handleStatusChange(complaint.id, e.target.value as typeof statusOptions[number])}
+                        onChange={(e) =>
+                          handleStatusChange(
+                            complaint.id,
+                            e.target.value as typeof statusOptions[number]
+                          )
+                        }
                         className="form-select text-sm py-1"
                         disabled={updating === complaint.id}
                       >
